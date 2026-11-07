@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=5.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#4f46e5">
+<title>书签管家</title>
+<style>
+:root{--bg:#f0f2f8;--surface:#fff;--surface2:#f5f6fa;--text:#1e2030;--text2:#6b7094;--primary:#4f46e5;--primary-bg:#eef2ff;--danger:#ef4444;--danger-bg:#fef2f2;--border:#e2e4f0;--shadow:0 2px 12px rgba(30,32,48,.08);--radius:14px}
+[data-theme="dark"]{--bg:#0b0f1a;--surface:#151b2e;--surface2:#1c2340;--text:#e8eaf6;--text2:#8b92b3;--primary:#818cf8;--primary-bg:#1e1b4b;--border:#262d4a;--shadow:0 2px 12px rgba(0,0,0,.35);--danger-bg:#3b1515}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);line-height:1.5;min-height:100vh;-webkit-tap-highlight-color:transparent}
+input,button,select,textarea{font:inherit;color:inherit}button{cursor:pointer;border:none;background:none}a{text-decoration:none}
+.header{position:sticky;top:0;z-index:50;background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;gap:10px}
+.logo{font-size:20px;font-weight:800;background:linear-gradient(135deg,var(--primary),#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;white-space:nowrap}
+.search-box{flex:1;position:relative;max-width:360px}
+.search-box input{width:100%;padding:9px 14px 9px 36px;border-radius:99px;border:1.5px solid var(--border);background:var(--surface2);font-size:14px;outline:none}
+.search-box input:focus{border-color:var(--primary)}
+.search-box::before{content:"\1F50D";position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:13px}
+.actions{display:flex;gap:4px;margin-left:auto}
+.icon-btn{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;font-size:17px;transition:background .15s;position:relative}
+.icon-btn:hover{background:var(--surface2)}.icon-btn:active{transform:scale(.92)}
+.toolbar{padding:12px 16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.filter-chip{padding:7px 14px;border-radius:99px;font-size:13px;border:1.5px solid var(--border);background:var(--surface);transition:all .15s}
+.filter-chip.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.sort-select{margin-left:auto;padding:7px 12px;border-radius:99px;border:1.5px solid var(--border);background:var(--surface);font-size:13px;outline:none}
+.stat{font-size:12px;color:var(--text2);width:100%;margin-top:-4px}
+.grid{padding:4px 16px 100px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+@media(max-width:680px){.grid{grid-template-columns:1fr;padding-bottom:140px}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow);display:flex;gap:12px;transition:transform .15s}
+.card:hover{transform:translateY(-2px)}
+.card-icon{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;font-weight:700;font-size:18px;color:#fff;flex-shrink:0}
+.card-body{flex:1;min-width:0}
+.card-title{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-url{font-size:12px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.card-url a{color:var(--text2)}
+.card-meta{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.badge{font-size:11px;padding:2px 8px;border-radius:99px;background:var(--primary-bg);color:var(--primary);font-weight:600}
+.badge.date{background:var(--surface2);color:var(--text2)}
+.card-actions{display:flex;gap:2px;flex-shrink:0}
+.card-actions button{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;font-size:15px;opacity:.5;transition:all .15s}
+.card-actions button:hover{opacity:1;background:var(--surface2)}
+.card-actions .del:hover{background:var(--danger-bg);opacity:1}
+.empty{text-align:center;padding:80px 20px;color:var(--text2);display:none}
+.empty .icon{font-size:56px;margin-bottom:12px}.empty h3{color:var(--text);margin-bottom:6px}
+.fab{position:fixed;bottom:24px;right:20px;width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,var(--primary),#7c3aed);color:#fff;font-size:28px;box-shadow:0 6px 24px rgba(79,70,229,.4);display:grid;place-items:center;z-index:40}
+@media(min-width:681px){.fab{display:none}}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:none;place-items:center;padding:16px}
+.overlay.show{display:grid}
+.modal{background:var(--surface);border-radius:18px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25);animation:up .25s ease}
+@keyframes up{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+.modal-head{padding:18px 20px 0;display:flex;justify-content:space-between;align-items:center}
+.modal-head h2{font-size:18px}.modal-close{width:32px;height:32px;border-radius:8px;display:grid;place-items:center;font-size:20px}
+.modal-close:hover{background:var(--surface2)}
+.modal-body{padding:16px 20px 24px;display:flex;flex-direction:column;gap:14px}
+.field label{display:block;font-size:13px;font-weight:600;color:var(--text2);margin-bottom:5px}
+.field input,.field select,.field textarea{width:100%;padding:10px 13px;border-radius:10px;border:1.5px solid var(--border);background:var(--surface2);font-size:15px;outline:none}
+.field input:focus,.field textarea:focus{border-color:var(--primary)}
+.field textarea{resize:vertical;min-height:60px}
+.row{display:flex;gap:10px}.row .field{flex:1}
+.btn{padding:11px 20px;border-radius:11px;font-weight:700;font-size:15px;text-align:center}
+.btn-primary{background:var(--primary);color:#fff}.btn-outline{border:1.5px solid var(--border);background:var(--surface2)}.btn-danger{background:var(--danger);color:#fff}.btn-block{width:100%}
+.btn-row{display:flex;gap:10px;margin-top:4px}.btn-row .btn{flex:1}
+.drop-zone{border:2px dashed var(--border);border-radius:14px;padding:32px 16px;text-align:center;color:var(--text2);font-size:14px;cursor:pointer;transition:all .2s}
+.drop-zone.over{border-color:var(--primary);background:var(--primary-bg);color:var(--primary)}
+.drop-zone .icon{font-size:36px;margin-bottom:6px}
+.import-mode{display:flex;gap:8px}.import-mode label{flex:1;padding:9px;border-radius:10px;border:1.5px solid var(--border);text-align:center;font-size:13px;cursor:pointer}
+.import-mode input:checked+label{border-color:var(--primary);background:var(--primary-bg);color:var(--primary)}
+.import-mode input{display:none}
+.toast-box{position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;gap:8px;pointer-events:none;width:90%;max-width:400px}
+.toast{padding:10px 20px;border-radius:10px;font-size:14px;font-weight:600;color:#fff;box-shadow:0 6px 20px rgba(0,0,0,.2);animation:td .3s;pointer-events:auto;text-align:center}
+.toast.ok{background:#10b981}.toast.err{background:#ef4444}.toast.info{background:#4f46e5}
+@keyframes td{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:none}}
+.confirm-body{padding:24px 20px;text-align:center}.confirm-body p{margin-bottom:18px;font-size:15px}
+.hidden-input{display:none}
+.hint{font-size:12px;color:var(--text2);text-align:center;line-height:1.6}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo">📑 书签管家</div>
+  <div class="search-box"><input id="searchInput" placeholder="搜索名称或网址…" oninput="render()"></div>
+  <div class="actions">
+    <button class="icon-btn" onclick="openImport()" title="导入">📥</button>
+    <button class="icon-btn" onclick="showExportMenu()" title="导出">💾</button>
+    <button class="icon-btn" id="themeBtn" onclick="toggleTheme()" title="主题">🌙</button>
+  </div>
+</header>
+<div class="toolbar">
+  <div id="catChips" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+  <select class="sort-select" id="sortSel" onchange="render()">
+    <option value="updateDesc">更新时间 ↓</option><option value="updateAsc">更新时间 ↑</option>
+    <option value="nameAsc">名称 A-Z</option><option value="nameDesc">名称 Z-A</option><option value="newest">最新添加</option>
+  </select>
+  <div class="stat" id="stat"></div>
+</div>
+<main class="grid" id="grid"></main>
+<div class="empty" id="empty"><div class="icon">🔖</div><h3>还没有收藏任何网站</h3><p>点右下角 ＋ 添加第一个吧</p></div>
+<button class="fab" onclick="openForm()">＋</button>
+
+<!-- 导出菜单 -->
+<div class="overlay" id="exportOverlay" onclick="if(event.target===this)closeExportMenu()">
+<div class="modal" style="max-width:400px">
+  <div class="modal-head"><h2>导出书签</h2><button class="modal-close" onclick="closeExportMenu()">✕</button></div>
+  <div class="modal-body">
+    <button class="btn btn-primary btn-block" onclick="exportHTML()">🌐 浏览器书签 HTML（可导入 Chrome/Edge/Firefox）</button>
+    <button class="btn btn-outline btn-block" onclick="exportJSON()">📦 JSON（本工具备份还原）</button>
+    <button class="btn btn-outline btn-block" onclick="exportCSV()">📄 CSV（Excel 打开）</button>
+    <div class="hint">💡 换设备或清缓存前，请先导出 HTML 或 JSON 备份</div>
+  </div>
+</div></div>
+
+<!-- 表单 -->
+<div class="overlay" id="formOverlay" onclick="if(event.target===this)closeForm()">
+<div class="modal">
+  <div class="modal-head"><h2 id="formTitle">添加网站</h2><button class="modal-close" onclick="closeForm()">✕</button></div>
+  <div class="modal-body">
+    <input type="hidden" id="fId">
+    <div class="field"><label>网站名称 *</label><input id="fName" placeholder="例如：阮一峰的网络日志"></div>
+    <div class="field"><label>网址 *</label><input id="fUrl" placeholder="https://example.com"></div>
+    <div class="row">
+      <div class="field"><label>更新时间</label><input type="date" id="fDate"></div>
+      <div class="field"><label>分类</label><input id="fCat" list="catList" placeholder="自选或新建"><datalist id="catList"></datalist></div>
+    </div>
+    <div class="field"><label>备注</label><textarea id="fNote" placeholder="可选"></textarea></div>
+    <div class="btn-row"><button class="btn btn-outline" onclick="closeForm()">取消</button><button class="btn btn-primary" onclick="save()">保存</button></div>
+  </div>
+</div></div>
+
+<!-- 导入 -->
+<div class="overlay" id="importOverlay" onclick="if(event.target===this)closeImport()">
+<div class="modal">
+  <div class="modal-head"><h2>导入书签</h2><button class="modal-close" onclick="closeImport()">✕</button></div>
+  <div class="modal-body">
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileIn').click()">
+      <div class="icon">📂</div><div>点击选择或拖入文件</div>
+      <div style="font-size:12px;opacity:.7;margin-top:4px">支持：本工具 JSON / CSV / 浏览器书签 HTML</div>
+    </div>
+    <input type="file" id="fileIn" class="hidden-input" accept=".json,.csv,.html,.htm" onchange="handleFile(this.files[0])">
+    <div class="import-mode">
+      <input type="radio" name="imode" id="mMerge" value="merge" checked><label for="mMerge">合并（保留现有）</label>
+      <input type="radio" name="imode" id="mReplace" value="replace"><label for="mReplace">覆盖（清空现有）</label>
+    </div>
+    <button class="btn btn-outline btn-block" onclick="pasteImport()">📋 粘贴 JSON 文本导入</button>
+    <div class="hint">⚠️ 导入浏览器 HTML 时只保留名称和网址，分类与备注需手动补充</div>
+  </div>
+</div></div>
+
+<!-- 删除确认 -->
+<div class="overlay" id="delOverlay" onclick="if(event.target===this)closeDel()">
+<div class="modal" style="max-width:340px"><div class="confirm-body">
+  <p>确定删除？<br><strong id="delName"></strong></p>
+  <div class="btn-row"><button class="btn btn-outline" onclick="closeDel()">取消</button><button class="btn btn-danger" id="delOk">删除</button></div>
+</div></div></div>
+
+<div class="toast-box" id="toasts"></div>
+
+<script>
+const KEY='bm_keeper_v2',THEME_KEY='bm_theme';
+let list=load();
+function load(){try{return JSON.parse(localStorage.getItem(KEY))||[]}catch(e){return[]}}
+function persist(){localStorage.setItem(KEY,JSON.stringify(list))}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
+function normUrl(s){s=s.trim();if(s&&!/^https?:\/\//i.test(s))s='https://'+s;return s}
+function domain(u){try{return new URL(u).hostname}catch(e){return u}}
+function fmtDate(d){if(!d)return'未设置';var dt=new Date(d);if(isNaN(dt))return d;return dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate())}
+function pad(n){return String(n).padStart(2,'0')}
+function daysAgo(d){if(!d)return null;var n=new Date();n.setHours(0,0,0,0);var diff=Math.floor((n-new Date(d))/864e5);if(diff<0)return null;if(diff===0)return'今天更新';if(diff===1)return'昨天更新';if(diff<30)return diff+'天前更新';return Math.floor(diff/30)+'个月前更新'}
+function colorOf(s){var h=0;for(var i=0;i<s.length;i++)h=s.charCodeAt(i)+((h<<5)-h);var c=['#4f46e5','#7c3aed','#db2777','#ea580c','#16a34a','#0891b2','#ca8a04','#dc2626','#2563eb','#059669'];return c[Math.abs(h)%c.length]}
+function esc(s){var d=document.createElement('div');d.textContent=s;return d.innerHTML}
+function toast(msg,type){type=type||'info';var el=document.createElement('div');el.className='toast '+type;el.textContent=msg;document.getElementById('toasts').appendChild(el);setTimeout(function(){el.remove()},2600)}
+function today(){var d=new Date();return d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())}
+
+/* ===== 通用保存：手机 Safari 走分享面板 ===== */
+function saveFile(blob,name){
+  if(navigator.share&&navigator.canShare){
+    var file=new File([blob],name,{type:blob.type});
+    if(navigator.canShare({files:[file]})){navigator.share({files:[file],title:name}).catch(function(){});return}
+  }
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;
+  document.body.appendChild(a);a.click();
+  setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(a.href)},2000);
+}
+
+/* ===== 导出：浏览器书签 HTML ===== */
+function exportHTML(){
+  if(!list.length){toast('没有数据可导出','err');return}
+  var now=Math.floor(Date.now()/1000);
+  var lines=[];
+  lines.push('<!DOCTYPE NETSCAPE-Bookmark-file-1>');
+  lines.push('<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">');
+  lines.push('<TITLE>Bookmarks</TITLE>');
+  lines.push('<H1>Bookmarks</H1>');
+  lines.push('<DL><p>');
+  lines.push('    <DT><H3 ADD_DATE="'+now+'" LAST_MODIFIED="'+now+'">书签管家</H3>');
+  lines.push('    <DL><p>');
+  for(var i=0;i<list.length;i++){
+    var it=list[i], url=esc(normUrl(it.url)), name=esc(it.name||it.url);
+    var ts=it.createdAt?Math.floor(it.createdAt/1000):now;
+    var note=it.note?' TITLE="'+esc(it.note)+'"':'';
+    lines.push('        <DT><A HREF="'+url+'" ADD_DATE="'+ts+'" LAST_VISIT="'+ts+'"'+note+'>'+name+'</A>');
+    if(it.category) lines.push('        <DT><H3>'+esc(it.category)+'</H3>');
+  }
+  lines.push('    </DL><p>');
+  lines.push('</DL><p>');
+  saveFile(new Blob([lines.join('\n')],{type:'text/html;charset=utf-8'}),'书签_'+today()+'.html');
+  toast('已导出浏览器书签 HTML','ok');
+}
+
+/* ===== 导出 JSON / CSV ===== */
+function exportJSON(){
+  if(!list.length){toast('没有数据可导出','err');return}
+  saveFile(new Blob([JSON.stringify(list,null,2)],{type:'application/json'}),'书签_'+today()+'.json');
+  toast('已导出 JSON','ok');
+}
+function exportCSV(){
+  if(!list.length){toast('没有数据可导出','err');return}
+  var BOM='\uFEFF',head='名称,网址,更新时间,分类,备注\n';
+  var rows=list.map(function(i){
+    return '"'+q((i.name||''))+'","'+q(i.url||'')+'","'+(i.updateTime||'')+'","'+q(i.category||'')+'","'+q(i.note||'')+'"';
+  }).join('\n');
+  function q(s){return s.replace(/"/g,'""')}
+  saveFile(new Blob([BOM+head+rows],{type:'text/csv;charset=utf-8'}),'书签_'+today()+'.csv');
+  toast('已导出 CSV','ok');
+}
+
+/* ===== 导出菜单 ===== */
+function showExportMenu(){document.getElementById('exportOverlay').classList.add('show')}
+function closeExportMenu(){document.getElementById('exportOverlay').classList.remove('show')}
+
+/* ===== 渲染 ===== */
+function render(){
+  var q=document.getElementById('searchInput').value.toLowerCase().trim();
+  var cat=window._cat||'';
+  var sort=document.getElementById('sortSel').value;
+  var arr=list.filter(function(it){
+    if(cat&&it.category!==cat)return false;
+    if(q&&it.name.toLowerCase().indexOf(q)<0&&it.url.toLowerCase().indexOf(q)<0&&(it.note||'').toLowerCase().indexOf(q)<0)return false;
+    return true;
+  });
+  var cmp={updateDesc:function(a,b){return(b.updateTime||'').localeCompare(a.updateTime||'')},updateAsc:function(a,b){return(a.updateTime||'').localeCompare(b.updateTime||'')},nameAsc:function(a,b){return a.name.localeCompare(b.name,'zh')},nameDesc:function(a,b){return b.name.localeCompare(a.name,'zh')},newest:function(a,b){return(b.createdAt||0)-(a.createdAt||0)}};
+  arr.sort(cmp[sort]||cmp.newest);
+  renderCats();
+  var g=document.getElementById('grid'),em=document.getElementById('empty');
+  if(!arr.length){g.innerHTML='';em.style.display='block';document.getElementById('stat').textContent=list.length?'无匹配结果':'共 0 个';return}
+  em.style.display='none';
+  document.getElementById('stat').textContent='共 '+arr.length+' 个'+(list.length!==arr.length?'（全部 '+list.length+'）':'');
+  g.innerHTML=arr.map(function(it){
+    var init=(it.name.trim()[0])||'?';
+    var tag=it.category?'<span class="badge">'+esc(it.category)+'</span>':'';
+    var db=it.updateTime?'<span class="badge date">📅 '+fmtDate(it.updateTime)+'</span>':'';
+    var ag=daysAgo(it.updateTime)?'<span class="badge date" style="opacity:.8">'+daysAgo(it.updateTime)+'</span>':'';
+    var note=it.note?'<div style="font-size:12px;color:var(--text2);margin-top:6px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical">'+esc(it.note)+'</div>':'';
+    return '<div class="card"><div class="card-icon" style="background:'+colorOf(it.name)+'">'+init+'</div><div class="card-body"><div class="card-title">'+esc(it.name)+'</div><div class="card-url"><a href="'+esc(normUrl(it.url))+'" target="_blank" rel="noopener">'+esc(domain(normUrl(it.url)))+'</a></div><div class="card-meta">'+tag+db+ag+'</div>'+note+'</div><div class="card-actions"><button data-act="open" data-url="'+esc(it.url)+'" title="打开">🔗</button><button data-act="edit" data-id="'+it.id+'" title="编辑">✏️</button><button class="del" data-act="del" data-id="'+it.id+'" title="删除">🗑</button></div></div>';
+  }).join('');
+  g.onclick=function(e){
+    var b=e.target.closest('button[data-act]');if(!b)return;
+    if(b.dataset.act==='open')window.open(normUrl(b.dataset.url),'_blank');
+    else if(b.dataset.act==='edit')openForm(b.dataset.id);
+    else if(b.dataset.act==='del')askDel(b.dataset.id);
+  };
+}
+function renderCats(){
+  var cats=[];list.forEach(function(i){if(i.category&&cats.indexOf(i.category)<0)cats.push(i.category)});cats.sort();
+  document.getElementById('catChips').innerHTML='<button class="filter-chip '+(window._cat===''?'active':'')+'" onclick="window._cat=\'\';render()">全部</button>'+cats.map(function(c){return '<button class="filter-chip '+(window._cat===c?'active':'')+'" onclick="window._cat=\''+esc(c)+'\';render()">'+esc(c)+'</button>'}).join('');
+  document.getElementById('catList').innerHTML=cats.map(function(c){return '<option value="'+esc(c)+'">'}).join('');
+}
+
+/* ===== 表单 ===== */
+function openForm(id){
+  document.getElementById('formTitle').textContent=id?'编辑网站':'添加网站';
+  document.getElementById('fId').value=id||'';
+  if(id){var it=list.find(function(x){return x.id===id});if(it){document.getElementById('fName').value=it.name;document.getElementById('fUrl').value=it.url;document.getElementById('fDate').value=it.updateTime||'';document.getElementById('fCat').value=it.category||'';document.getElementById('fNote').value=it.note||''}}
+  else{document.getElementById('fName').value='';document.getElementById('fUrl').value='';document.getElementById('fDate').value='';document.getElementById('fCat').value='';document.getElementById('fNote').value=''}
+  document.getElementById('formOverlay').classList.add('show');
+  setTimeout(function(){document.getElementById('fName').focus()},100);
+}
+function closeForm(){document.getElementById('formOverlay').classList.remove('show')}
+function save(){
+  var name=document.getElementById('fName').value.trim(),url=document.getElementById('fUrl').value.trim();
+  if(!name||!url){toast('名称和网址不能为空','err');return}
+  var id=document.getElementById('fId').value;
+  var obj={name:name,url:normUrl(url),updateTime:document.getElementById('fDate').value,category:document.getElementById('fCat').value.trim(),note:document.getElementById('fNote').value.trim()};
+  if(id){var i=list.findIndex(function(x){return x.id===id});if(i>=0)Object.assign(list[i],obj);toast('已更新','ok')}
+  else{obj.id=uid();obj.createdAt=Date.now();list.unshift(obj);toast('已添加','ok')}
+  persist();closeForm();render();
+}
+
+/* ===== 删除 ===== */
+var _delId='';
+function askDel(id){_delId=id;var it=list.find(function(x){return x.id===id});document.getElementById('delName').textContent=it?it.name:'';document.getElementById('delOverlay').classList.add('show');
+  document.getElementById('delOk').onclick=function(){list=list.filter(function(x){return x.id!==_delId});persist();render();closeDel();toast('已删除','ok')}}
+function closeDel(){document.getElementById('delOverlay').classList.remove('show')}
+
+/* ===== 导入 ===== */
+function openImport(){document.getElementById('importOverlay').classList.add('show')}
+function closeImport(){document.getElementById('importOverlay').classList.remove('show');document.getElementById('fileIn').value=''}
+function handleFile(f){
+  if(!f)return;
+  var r=new FileReader();
+  r.onload=function(e){
+    var t=e.target.result;
+    var ext=f.name.split('.').pop().toLowerCase();
+    if(ext==='csv')parseCSV(t);
+    else if(ext==='html'||ext==='htm')parseBookmarkHTML(t);
+    else{try{parseJSON(JSON.parse(t))}catch(err){try{parseBookmarkHTML(t)}catch(e2){toast('无法识别文件格式','err')}}}
+  };
+  r.readAsText(f);
+}
+function parseJSON(arr){if(!Array.isArray(arr)){toast('格式不正确','err');return}applyImport(arr.map(normalize))}
+function parseCSV(t){
+  var lines=t.replace(/^\uFEFF/,'').split(/\r?\n/).filter(function(l){return l.trim()});
+  if(lines.length<2){toast('CSV 为空','err');return}
+  var arr=[];
+  for(var i=1;i<lines.length;i++){
+    var m=lines[i].match(/(".*?"|[^",]*)(?:,|$)/g);if(!m)continue;
+    var v=m.map(function(s){return s.replace(/^"|"$/g,'').replace(/""/g,'"').trim()});
+    arr.push({name:v[0]||'',url:v[1]||'',updateTime:v[2]||'',category:v[3]||'',note:v[4]||''});
+  }
+  applyImport(arr.map(normalize));
+}
+/* 解析浏览器书签 HTML：提取所有 <A HREF=...>标题</A> */
+function parseBookmarkHTML(text){
+  var doc=new DOMParser().parseFromString(text,'text/html');
+  var links=doc.querySelectorAll('a[href]');
+  var arr=[];
+  for(var i=0;i<links.length;i++){
+    var a=links[i],href=a.getAttribute('href')||'';
+    if(href.indexOf('http')!==0&&href.indexOf('javascript')!==0&&href.indexOf('#')!==0){continue}
+    if(href.indexOf('http')!==0)continue;
+    var name=a.textContent.trim()||href;
+    arr.push({name:name,url:href,updateTime:'',category:'',note:''});
+  }
+  if(!arr.length){toast('未找到有效网址','err');return}
+  applyImport(arr.map(normalize));
+}
+function normalize(o){return{id:uid(),name:(o.name||'').trim(),url:normUrl(o.url||''),updateTime:o.updateTime||'',category:(o.category||'').trim(),note:(o.note||'').trim(),createdAt:Date.now()}}
+function applyImport(arr){
+  var mode=document.querySelector('input[name="imode"]:checked').value;
+  var before=list.length;
+  if(mode==='replace')list=arr;
+  else{var exists={};list.forEach(function(i){exists[i.url]=true});arr.forEach(function(a){if(!exists[a.url])list.push(a)})}
+  persist();render();closeImport();
+  toast('导入成功：新增 '+(list.length-before)+' 条','ok');
+}
+function pasteImport(){var t=prompt('请粘贴 JSON 数组文本：');if(!t)return;try{parseJSON(JSON.parse(t))}catch(e){toast('解析失败，请检查格式','err')}}
+(function(){var z=document.getElementById('dropZone');['dragenter','dragover'].forEach(function(e){z.addEventListener(e,function(ev){ev.preventDefault();z.classList.add('over')})});['dragleave','drop'].forEach(function(e){z.addEventListener(e,function(ev){ev.preventDefault();z.classList.remove('over')})});z.addEventListener('drop',function(ev){handleFile(ev.dataTransfer.files[0])})})();
+
+/* ===== 主题 ===== */
+function toggleTheme(){var h=document.documentElement,nh=h.dataset.theme==='dark'?'light':'dark';h.dataset.theme=nh;localStorage.setItem(THEME_KEY,nh);document.getElementById('themeBtn').textContent=nh==='dark'?'☀️':'🌙'}
+(function(){var s=localStorage.getItem(THEME_KEY)||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light');document.documentElement.dataset.theme=s;document.getElementById('themeBtn').textContent=s==='dark'?'☀️':'🌙'})();
+
+render();
+</script>
+</body>
+</html>
